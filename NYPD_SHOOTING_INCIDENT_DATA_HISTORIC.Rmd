@@ -1,0 +1,112 @@
+---
+title: "MyFirstRmd"
+author: "M. Butler"
+date: '2022-03-20'
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+Loading necessary libraries to analyze the code. 
+```{r libraries }
+library(dplyr)
+library(tidyverse)
+library(tinytex)
+library(lubridate)
+library(httr)
+library(reshape2)
+```
+
+
+
+Read in the data from the CSV to see what data we have by looking at columns. 
+
+```{r import_data, message = FALSE}
+url<- "https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD"
+df <- readr::read_csv(url)
+colnames(df)
+```
+I decided that I was going to analyze the data for time and date of the shootings, more specifically month.  
+
+```{r tidy_data}
+tidy_df <- df%>%
+  select(OCCUR_DATE, OCCUR_TIME)%>%
+  mutate(OCCUR_DATE = mdy(OCCUR_DATE), OCCUR_TIME = hms(OCCUR_TIME))
+summary(tidy_df)
+```
+
+These two new data sets have the data that we will be evaluating, the times that there are shootings based on what time of year it is. 
+```{r new_data_sets}
+DATES <- tidy_df["OCCUR_DATE"]
+TIME <- tidy_df["OCCUR_TIME"]
+```
+
+
+
+Here is the data for the distribution of shootings by month, to show which months had more shootings. It shows that during the summer months, there are more shootings. 
+```{r}
+MONTHS <- format(DATES$OCCUR_DATE, format = "%m")
+MONTHS_FRQ <- as.data.frame(table(MONTHS))
+ggplot(MONTHS_FRQ, aes(x = MONTHS, y = Freq)) + geom_bar(stat = "identity")
+```
+Next, this is to show the distribution of times of these shootings. In the data, it can be seen that there are more shootings in the night time hours than the day time hours. Next we will see how this interacts with different times of the year. 
+```{r}
+HOURS <- hour(TIME$OCCUR_TIME)
+HOURS_FRQ <- as.data.frame(table(HOURS))
+ggplot(HOURS_FRQ, aes(x = HOURS, y = Freq)) + geom_bar(stat = "identity")
+```
+This is a heat map, which shows the months of the year and what time of day shootings occur. It can be seen that there are more shootings at night during the summer, between the hours of 18:00 and 6:00. Looking at the months October-December, the sunrise is getting later in the day and sunset is earlier. The shootings are happening a little later in the morning and a little earlier in the evening, suggesting that these happen when there is little day light. To go along with this trend, there are less shootings at night during the months October through April, which could tend to be less people being out at night during the winter months. 
+```{r HOUR_COMP_MONTH}
+HOUR_MONTH <- as.data.frame(table(HOURS,MONTHS))
+HOUR_COMP_MONTH <- dcast(HOUR_MONTH, HOURS ~ MONTHS)
+rownames(HOUR_COMP_MONTH) <- HOUR_COMP_MONTH$HOURS
+HOUR_COMP_MONTH <- select(as.data.frame(HOUR_COMP_MONTH), -HOURS)
+MATRIX <- as.matrix(HOUR_COMP_MONTH)
+heatmap(MATRIX,Rowv = NA,Colv = NA)
+```
+
+There are possibilities for bias in this determination, so the months will now be compared to years, to see if there are many outliers in the data that should be omitted. First we look at years. There is a big outlier in the year 2020, where shootings shot back up when numbers were lower previously. 
+
+```{r}
+YEARS <- format(DATES$OCCUR_DATE, format = "%Y")
+YEARS_FRQ <- as.data.frame(table(YEARS))
+ggplot(YEARS_FRQ, aes(x = YEARS, y = Freq)) + geom_bar(stat = "identity")
+```
+
+With this data, there are a lot of summer shootings in the year 2020. This means that there could be a possibilities that all of the shootings are heavily weighted towards those months due to being in that year. 
+
+```{r}
+MONTH_YEAR <- as.data.frame(table(MONTHS,YEARS))
+MONTH_COMP_YEAR <- dcast(MONTH_YEAR, MONTHS ~ YEARS)
+rownames(MONTH_COMP_YEAR) <- MONTH_COMP_YEAR$MONTHS
+MONTH_COMP_YEAR <- select(as.data.frame(MONTH_COMP_YEAR), -MONTHS)
+MYMATRIX <- as.matrix(MONTH_COMP_YEAR)
+heatmap(MYMATRIX, Rowv = NA, Colv = NA)
+```
+
+```{r modeling_time_of_day}
+OCCUR_TME <- c(TIME$OCCUR_TIME)
+SORT_TIME <- sort(OCCUR_TME)
+SORT_TIME <- format(SORT_TIME, format ="%H/%M")
+SORT_TIME <- as.data.frame(SORT_TIME)
+FRQ_SORT_TIME <- as.data.frame(table(SORT_TIME))
+ggplot(FRQ_SORT_TIME, aes(x = SORT_TIME, y = Freq, group = 1)) +
+  geom_line() +
+  xlab("")
+fit_line <- lm(FRQ_SORT_TIME ~ SORT_TIME, data = FRQ_SORT_TIME)
+zzz <- data.frame(TIMELINE = unique(SORT_TIME))
+predict <- as.data.frame(as.integer(predict(fit_line, zzz)))
+ggplot(FRQ_SORT_TIME, aes(x = SORT_TIME, y = Freq, group = 1)) +
+  geom_line() +
+  geom_line(data = predict, color = "r") +
+  xlab("")
+```
+
+
+It can be concluded that the time of day effects the number of shootings that happen. I was interested in looking at this data as I wanted to find out if there was a significant difference in the number of shootings at each time of day and whether it varied by time of year. This is one of the biases of this set of data, as I chose to look at the time. The time and day data points were two of the only data points where there was no missing data, there were these data points for each one. 
+Part of the bias of these conclusions with this data is that 2020 was included for the whole data. A further exploration could show that there was indeed a lot of bias in the summer and latter half of 2020, which could have skewed the data. One data point that was significant was the number of shootings at night during the summer months. Was this weighted by summer of 2020? These are forms of bias that could be taken out in the future. 
+To sum up this data that was observed, time of day and time of year seem to have a factor on when shootings occur in New York City. Further analysis can determine whether there are temporary or long term trends. 
+
