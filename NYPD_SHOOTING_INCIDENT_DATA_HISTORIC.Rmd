@@ -87,25 +87,6 @@ MYMATRIX <- as.matrix(MONTH_COMP_YEAR)
 heatmap(MYMATRIX, Rowv = NA, Colv = NA)
 ```
 
-```{r modeling_time_of_day}
-OCCUR_TME <- c(TIME$OCCUR_TIME)
-SORT_TIME <- sort(OCCUR_TME)
-SORT_TIME <- format(SORT_TIME, format ="%H/%M")
-SORT_TIME <- as.data.frame(SORT_TIME)
-FRQ_SORT_TIME <- as.data.frame(table(SORT_TIME))
-ggplot(FRQ_SORT_TIME, aes(x = SORT_TIME, y = Freq, group = 1)) +
-  geom_line() +
-  xlab("")
-fit_line <- lm(FRQ_SORT_TIME ~ SORT_TIME, data = FRQ_SORT_TIME)
-zzz <- data.frame(TIMELINE = unique(SORT_TIME))
-predict <- as.data.frame(as.integer(predict(fit_line, zzz)))
-ggplot(FRQ_SORT_TIME, aes(x = SORT_TIME, y = Freq, group = 1)) +
-  geom_line() +
-  geom_line(data = predict, color = "r") +
-  xlab("")
-```
-
-
 It can be concluded that the time of day effects the number of shootings that happen. I was interested in looking at this data as I wanted to find out if there was a significant difference in the number of shootings at each time of day and whether it varied by time of year. This is one of the biases of this set of data, as I chose to look at the time. The time and day data points were two of the only data points where there was no missing data, there were these data points for each one. 
 Part of the bias of these conclusions with this data is that 2020 was included for the whole data. A further exploration could show that there was indeed a lot of bias in the summer and latter half of 2020, which could have skewed the data. One data point that was significant was the number of shootings at night during the summer months. Was this weighted by summer of 2020? These are forms of bias that could be taken out in the future. 
 To sum up this data that was observed, time of day and time of year seem to have a factor on when shootings occur in New York City. Further analysis can determine whether there are temporary or long term trends. 
